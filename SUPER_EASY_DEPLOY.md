@@ -91,11 +91,14 @@ Type EXACTLY this:
 - **Name:** `battleofcodes-socket`
 - **Region:** Choose closest to you
 - **Branch:** `main`
-- **Root Directory:** `socket-server`
+- **Root Directory:** `socket-server` ← **IMPORTANT! Type this in the box!**
 - **Runtime:** `Node`
 - **Build Command:** `npm install && npm run build`
 - **Start Command:** `npm start`
 - **Instance Type:** `Free`
+
+**⚠️ SUPER IMPORTANT:** The "Root Directory" box might be empty. You MUST type `socket-server` in it!
+This tells Render to look inside the socket-server folder, not the main folder.
 
 ### Step 4: Add Environment Variables
 Scroll down to **"Environment Variables"** section
@@ -142,9 +145,11 @@ Type EXACTLY this:
 - **Name:** `battleofcodes-csharp`
 - **Region:** Same as before
 - **Branch:** `main`
-- **Root Directory:** `csharp-executor`
+- **Root Directory:** `csharp-executor` ← **IMPORTANT! Type this in the box!**
 - **Runtime:** `Docker`
 - **Instance Type:** `Free`
+
+**⚠️ SUPER IMPORTANT:** Again, type `csharp-executor` in the Root Directory box!
 
 ### Step 3: Add Environment Variables
 Click **"Add Environment Variable"** and add these:

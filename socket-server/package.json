@@ -2,22 +2,22 @@
   "name": "battleofcodes-socket-server",
   "version": "1.0.0",
   "description": "Socket.io server for Battle of Codes real-time communication",
-  "main": "index.ts",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch index.ts",
-    "build": "tsc",
+    "build": "npm install && tsc",
     "start": "node dist/index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.6.1",
-    "cors": "^2.8.5"
-  },
-  "devDependencies": {
+    "cors": "^2.8.5",
     "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
     "@types/node": "^20.11.0",
-    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
   }
 }

@@ -46,8 +46,7 @@ export function WaitingRoom({ room, participants: initialParticipants, currentUs
 
   const isCreator = room.creator_id === currentUser.id
   const readyCount = participants.filter((p) => p.is_ready).length
-  const allReady = participants.length >= 2 && participants.every((p) => p.is_ready)
-  const canStart = participants.length >= 2 && allReady
+  const minimumPlayersReady = participants.length >= 2
 
   // Poll for participants updates
   useEffect(() => {
@@ -85,35 +84,10 @@ export function WaitingRoom({ room, participants: initialParticipants, currentUs
     return () => clearInterval(interval)
   }, [room.room_code, room.creator_id, router, isCreator])
 
-  // Countdown timer - starts when all players are ready
+  // Countdown is no longer needed since host has manual control
   useEffect(() => {
-    if (allReady && participants.length >= 2 && !isStarting) {
-      setCountdown(WAITING_ROOM_TIMER)
-    } else if (!allReady) {
-      setCountdown(null)
-    }
-  }, [allReady, participants.length, isStarting])
-
-  // Countdown effect
-  useEffect(() => {
-    if (countdown === null || countdown <= 0) return
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev === null) return null
-        if (prev <= 1) {
-          // Auto-start game when countdown reaches 0
-          if (isCreator && canStart) {
-            handleStartGame()
-          }
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [countdown, isCreator, canStart])
+    setCountdown(null)
+  }, [])
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(room.room_code)
@@ -269,7 +243,10 @@ export function WaitingRoom({ room, participants: initialParticipants, currentUs
                 {/* Ready Status */}
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground uppercase mb-1">Ready Status</p>
-                  <Badge variant={allReady ? "default" : "secondary"} className={allReady ? "bg-green-600" : ""}>
+                  <Badge
+                    variant={minimumPlayersReady ? "default" : "secondary"}
+                    className={minimumPlayersReady ? "bg-green-600" : ""}
+                  >
                     {readyCount}/{participants.length} Ready
                   </Badge>
                 </div>
@@ -391,17 +368,9 @@ export function WaitingRoom({ room, participants: initialParticipants, currentUs
             )}
 
             {isCreator && (
-              <Button className="flex-1 h-12" onClick={handleStartGame} disabled={!canStart || isStarting}>
+              <Button className="flex-1 h-12" onClick={handleStartGame} disabled={!minimumPlayersReady || isStarting}>
                 <Play className="w-4 h-4 mr-2" />
-                {isStarting
-                  ? "Starting..."
-                  : canStart
-                    ? countdown !== null && countdown > 0
-                      ? `Start Now (Auto in ${formatCountdown(countdown)})`
-                      : "Start Game"
-                    : participants.length < 2
-                      ? "Need 2+ Players"
-                      : "Waiting for All Ready..."}
+                {isStarting ? "Starting..." : minimumPlayersReady ? "Start Game NOW" : "Need 2+ Players"}
               </Button>
             )}
           </div>

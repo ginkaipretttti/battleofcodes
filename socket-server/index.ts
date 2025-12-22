@@ -13,6 +13,8 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"],
     credentials: true,
   },
+  pingInterval: 25000,
+  pingTimeout: 60000,
 })
 
 interface RoomData {
@@ -149,6 +151,10 @@ io.on("connection", (socket) => {
       userRooms.delete(socket.id)
     }
   })
+})
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: Date.now() })
 })
 
 const PORT = process.env.PORT || 3001

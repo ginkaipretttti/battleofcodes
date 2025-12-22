@@ -5,17 +5,43 @@ import { io, type Socket } from "socket.io-client"
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001"
 
+class MessageQueue {
+  private queue: Array<{ event: string; data: any }> = []
+
+  push(event: string, data: any) {
+    this.queue.push({ event, data })
+  }
+
+  flush(socket: Socket) {
+    while (this.queue.length > 0) {
+      const { event, data } = this.queue.shift()!
+      socket.emit(event, data)
+    }
+  }
+
+  clear() {
+    this.queue = []
+  }
+}
+
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null)
+  const queueRef = useRef(new MessageQueue())
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
     socketRef.current = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 10,
+      reconnectInterval: 1000,
     })
 
     socketRef.current.on("connect", () => {
       console.log("[v0] Socket connected")
+      queueRef.current.flush(socketRef.current!)
       setConnected(true)
     })
 
@@ -24,25 +50,33 @@ export function useSocket() {
       setConnected(false)
     })
 
+    socketRef.current.on("connect_error", (error) => {
+      console.error("[v0] Socket connection error:", error)
+    })
+
     return () => {
       socketRef.current?.disconnect()
     }
   }, [])
 
-  return { socket: socketRef.current, connected }
+  return { socket: socketRef.current, connected, messageQueue: queueRef.current }
 }
 
 export function useRoomSocket(roomCode: string, userId: number, fullname: string) {
-  const { socket, connected } = useSocket()
+  const { socket, connected, messageQueue } = useSocket()
   const [participants, setParticipants] = useState<any[]>([])
   const [gameStarted, setGameStarted] = useState(false)
   const [messages, setMessages] = useState<any[]>([])
 
   useEffect(() => {
-    if (!socket || !connected) return
+    if (!socket) return
 
-    // Join room
-    socket.emit("join-room", { roomCode, userId, fullname })
+    const joinData = { roomCode, userId, fullname }
+    if (connected) {
+      socket.emit("join-room", joinData)
+    } else {
+      messageQueue.push("join-room", joinData)
+    }
 
     // Listen for participant updates
     socket.on("participant-joined", (data) => {
@@ -73,17 +107,24 @@ export function useRoomSocket(roomCode: string, userId: number, fullname: string
       socket.off("game-start")
       socket.off("new-chat-message")
     }
-  }, [socket, connected, roomCode, userId, fullname])
+  }, [socket, connected, roomCode, userId, fullname, messageQueue])
 
   const sendMessage = (message: string) => {
+    const msgData = { roomCode, userId, fullname, message }
     if (socket && connected) {
-      socket.emit("chat-message", { roomCode, userId, fullname, message })
+      socket.emit("chat-message", msgData)
+    } else {
+      messageQueue.push("chat-message", msgData)
+      console.log("[v0] Message queued (socket disconnected)")
     }
   }
 
   const updateReadyStatus = (isReady: boolean) => {
+    const readyData = { roomCode, userId, isReady }
     if (socket && connected) {
-      socket.emit("player-ready", { roomCode, userId, isReady })
+      socket.emit("player-ready", readyData)
+    } else {
+      messageQueue.push("player-ready", readyData)
     }
   }
 
@@ -99,14 +140,19 @@ export function useRoomSocket(roomCode: string, userId: number, fullname: string
 }
 
 export function useGameSocket(roomCode: string, gameId: number, userId: number, fullname: string) {
-  const { socket, connected } = useSocket()
+  const { socket, connected, messageQueue } = useSocket()
   const [scores, setScores] = useState<any[]>([])
   const [submissions, setSubmissions] = useState<any[]>([])
 
   useEffect(() => {
-    if (!socket || !connected) return
+    if (!socket) return
 
-    socket.emit("join-room", { roomCode, userId, fullname })
+    const joinData = { roomCode, userId, fullname }
+    if (connected) {
+      socket.emit("join-room", joinData)
+    } else {
+      messageQueue.push("join-room", joinData)
+    }
 
     socket.on("submission-received", (data) => {
       setSubmissions((prev) => [...prev, data])
@@ -130,17 +176,23 @@ export function useGameSocket(roomCode: string, gameId: number, userId: number, 
       socket.off("new-round")
       socket.off("game-end")
     }
-  }, [socket, connected, roomCode, userId, fullname])
+  }, [socket, connected, roomCode, userId, fullname, messageQueue])
 
   const notifySubmission = (isCorrect: boolean, points: number) => {
+    const subData = { roomCode, userId, fullname, isCorrect, points }
     if (socket && connected) {
-      socket.emit("code-submitted", { roomCode, userId, fullname, isCorrect, points })
+      socket.emit("code-submitted", subData)
+    } else {
+      messageQueue.push("code-submitted", subData)
     }
   }
 
   const updateScores = (updatedScores: any[]) => {
+    const scoreData = { roomCode, scores: updatedScores }
     if (socket && connected) {
-      socket.emit("score-update", { roomCode, scores: updatedScores })
+      socket.emit("score-update", scoreData)
+    } else {
+      messageQueue.push("score-update", scoreData)
     }
   }
 

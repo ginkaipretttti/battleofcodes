@@ -12,7 +12,7 @@ import { GamePlayers } from "./game-players"
 import { GameTimer } from "./game-timer"
 import { TestResults } from "./test-results"
 import { useGameSocket } from "@/lib/socket"
-import { Send, MessageSquare, X } from "lucide-react"
+import { Send, MessageSquare, X, AlertCircle } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +44,9 @@ export function GameInterface({ room, game, participants, currentUser }: GameInt
   const [chatMessage, setChatMessage] = useState("")
   const [messages, setMessages] = useState<any[]>([])
   const [leftMidGame, setLeftMidGame] = useState(false)
+  const [showRoundEndDialog, setShowRoundEndDialog] = useState(false)
+  const [showCorrectDialog, setShowCorrectDialog] = useState(false)
+  const [roundEndDetails, setRoundEndDetails] = useState<any>(null)
 
   const isHost = room.creator_id === currentUser.id
 
@@ -92,6 +95,20 @@ export function GameInterface({ room, game, participants, currentUser }: GameInt
     return () => clearInterval(interval)
   }, [fetchCurrentRound])
 
+  const handleTimeUp = () => {
+    setShowRoundEndDialog(true)
+    setRoundEndDetails({
+      title: "Time's Up!",
+      description: "The round timer has ended. The results will be calculated and the next round will start soon.",
+      isTimeUp: true,
+    })
+    // Wait 3 seconds then move to next round
+    setTimeout(() => {
+      setShowRoundEndDialog(false)
+      fetchCurrentRound()
+    }, 3000)
+  }
+
   const handleSubmit = async () => {
     if (!currentRound || !challenge) return
 
@@ -113,7 +130,17 @@ export function GameInterface({ room, game, participants, currentUser }: GameInt
       if (response.ok) {
         setTestResults(data.results)
         notifySubmission(data.results.is_correct, data.results.points_earned)
-        fetchCurrentRound()
+
+        if (data.results.is_correct) {
+          setShowCorrectDialog(true)
+          setTimeout(() => {
+            setShowCorrectDialog(false)
+            // Give a small delay before fetching next round
+            setTimeout(() => {
+              fetchCurrentRound()
+            }, 500)
+          }, 2000)
+        }
       } else {
         setTestResults({
           is_correct: false,
@@ -131,7 +158,6 @@ export function GameInterface({ room, game, participants, currentUser }: GameInt
   }
 
   const handleLeaveGame = async () => {
-    // Mark as left mid-game so points won't count
     setLeftMidGame(true)
 
     try {
@@ -184,6 +210,29 @@ export function GameInterface({ room, game, participants, currentUser }: GameInt
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={showRoundEndDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="w-5 h-5" />
+              {roundEndDetails?.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{roundEndDetails?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showCorrectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-green-500">Correct! ✓</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your solution passed all test cases! Proceeding to the next round...
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <GameHeader room={room} currentRound={currentRound} onLeave={handleLeaveGame} isHost={isHost} />
 
       <div className="container mx-auto px-4 py-6">
@@ -211,7 +260,11 @@ export function GameInterface({ room, game, participants, currentUser }: GameInt
                     {challenge.points} pts
                   </Badge>
                 </div>
-                <GameTimer timeLimit={challenge.time_limit} roundStartedAt={currentRound.started_at} />
+                <GameTimer
+                  timeLimit={challenge.time_limit}
+                  roundStartedAt={currentRound.started_at}
+                  onTimeUp={handleTimeUp}
+                />
               </div>
               <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{challenge.description}</p>
 

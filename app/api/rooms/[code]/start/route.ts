@@ -32,11 +32,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       return NextResponse.json({ error: "Need at least 2 players" }, { status: 400 })
     }
 
-    const allReady = participants.every((p) => p.is_ready)
-    if (!allReady) {
-      return NextResponse.json({ error: "Not all players are ready" }, { status: 400 })
-    }
-
     // Update room status
     await sql`
       UPDATE rooms 
